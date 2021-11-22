@@ -18,6 +18,30 @@ end
 
 TextGrid = Vector{Tier}
 
+"""
+    read_TextGrid(file; intervals = true, points = true, nonempty = false)
+
+Read a Praat TextGrid file and return a `TextGrid` object, which is equivalent
+to a Vector of the type `Tier`. Supports both full and short text formats.
+
+Each `Tier` has a number of attributes:
+- `num`: index
+- `class`: either "interval" or "point"
+- `name`
+- `size`
+- `xmin`, `xmax`: time domain
+- `contents`: a Vector of `Interval`s containing all annotations. Intervals
+    also apply to point annotations.
+
+# Keyword arguments:
+- `intervals::Bool = true`: Determines if Interval Tiers are read.
+- `points::Bool = true`: Determines if Point Tiers are read.
+- `nonempty::Bool = false`: Determines if only nonempty annotations are parsed.
+    If `true`, the output `Tier` will not contain any empty intervals or points.
+    Any empty points or boundaries between successive empty intervals from the
+    input file are not preserved, and the size of the `Tier` will be recalculated
+    to account for the lost annotations.
+"""
 function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Bool = true, nonempty::Bool = false)
     isfile(file) || error("$file does not exist")
 
@@ -110,7 +134,13 @@ function unparse_TG_label(text::AbstractString)
     "\"" * label * "\""
 end
 
-function write_TextGrid(tg::TextGrid, file::AbstractString)
+"""
+    write_TextGrid(file, tg)
+
+Write the TextGrid object `tg` to a TextGrid file. Currently only writes in
+full and not short text file format.
+"""
+function write_TextGrid(file::AbstractString, tg::TextGrid)
     f = Base.open(file, "w")
 
     write_TextGrid_preamble(f, tg)
@@ -196,138 +226,3 @@ end
 function writeln(f, x; depth = 0)
     write(f, repeat("\t", depth) * x * "\n")
 end
-
-# function read_TextGrid_alt(file::AbstractString; intervals::Bool = true, points::Bool = true, nonempty::Bool = true)
-#     # check if file exists
-#     if !isfile(file)
-#         error("$file does not exist")
-#     end
-
-#     f = Base.open(file)
-#     # check if file is a TextGrid
-#     if !is_TextGrid(f)
-#         Base.close(f)
-#         error("$file is not a TextGrid")
-#     end
-
-#     n_tier = read_TextGrid_preamble(f)
-
-#     # initialise
-#     tg = TextGrid()
-
-#     # read TextGrid data from each tier
-#     for i = 1:n_tier
-#         tier = read_tier(f, i, intervals = intervals, points = points, nonempty = nonempty)
-#         if !isnothing(tier)
-#             push!(tg, tier)
-#         end
-#     end
-#     Base.close(f)
-
-#     tg
-# end
-
-# function is_TextGrid(f::IOStream)
-#     line1 = readline(f)
-#     line2 = readline(f)
-
-#     contains(line1, "ooTextFile") & contains(line2, "TextGrid")
-# end
-
-# function read_TextGrid_preamble(f::IOStream)
-#     # ignore 4 lines (empty, xmin, xmax, tiers?) and get size
-#     for i = 1:4
-#         line = readline(f)
-#     end
-#     line = readline(f)
-#     n_tier = parse(Int, split(line, " = ")[2])
-    
-#     # ignore container line
-#     line = readline(f)
-
-#     n_tier
-# end
-
-# function read_tier(f::IOStream, tier::Int; intervals::Bool = true, points::Bool = true, nonempty::Bool = true)
-#     (num, class, name, xmin, xmax, size) = read_tier_preamble(f)
-
-#     if size == 0
-#         return nothing
-#     else
-#         contents = read_tier_contents(f, tier, class, size, nonempty = nonempty)
-#     end
-
-#     if (class == "interval") & !intervals
-#         return nothing
-#     end
-
-#     if (class == "point") & !points
-#         return nothing
-#     end
-
-#     Tier(num, class, name, size, xmin, xmax, contents)
-# end
-
-# function read_tier_preamble(f::IOStream)
-#         # num
-#         line = readline(f)
-#         num = parse(Int, split(line, r"\[|\]")[2])
-    
-#         # class
-#         line = readline(f)
-#         class = split(line, "\"")[2] == "IntervalTier" ? "interval" : "point"
-    
-#         # name
-#         line = readline(f)
-#         name = split(line, "\"")[2]
-    
-#         # xmin, xmax
-#         line = readline(f)
-#         xmin = parse(Float64, split(line, " = ")[2])
-    
-#         line = readline(f)
-#         xmax = parse(Float64, split(line, " = ")[2])
-    
-#         # size of tier
-#         line = readline(f)
-#         size = parse(Int, split(line, " = ")[2])
-
-#         num, class, name, xmin, xmax, size
-# end
-
-# function read_tier_contents(f::IOStream, tier::Int, class::AbstractString, size::Int; nonempty::Bool = true)
-#     contents = Vector{Interval}(undef, size)
-#     for i = 1:size
-#         # index
-#         line = readline(f)
-#         index = parse(Int, split(line, r"\[|\]")[2])
-    
-#         # xmin, xmax
-#         line = readline(f)
-#         xmin = parse(Float64, split(line, " = ")[2])
-
-#         # if interval tier, read line for xmax
-#         # if point tier, xmax = xmin
-#         if class == "interval"
-#             line = readline(f)
-#             xmax = parse(Float64, split(line, " = ")[2])
-#         else
-#             xmax = xmin
-#         end
-
-#         # label
-#         line = readline(f)
-#         label = parse_TG_label(strip(split(line, " = ", limit = 2)[2]))
-
-#         contents[i] = Interval(tier, index, xmin, xmax, label)
-#     end
-
-#     # delete intervals/points with empty labels if nonempty is true, then recalculate size
-#     if nonempty
-#         deleteat!(contents, findall(x -> length(x.label) == 0, contents))
-#     end
-#     # size = length(contents)
-
-#     # size, contents
-#     contents
-# end
