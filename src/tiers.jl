@@ -11,11 +11,7 @@ function rename!(tier::Tier, name::AbstractString)
     tier
 end
 
-function rename!(tg::TextGrid, num::Int, name::AbstractString)
-    tier_num = findfirst(x -> x.num == num, tg)
-    tg[tier_num].name = name
-    tg
-end
+rename!(tg::TextGrid, num::Int, name::AbstractString) = rename!(tg[num], name)
 
 function rename!(tg::TextGrid, name_orig::AbstractString, name::AbstractString)
     tier_num = findfirst(x -> x.name == name_orig, tg)
@@ -43,10 +39,7 @@ function relabel!(tier::Tier, index::Int, label::AbstractString)
     tier
 end
 
-function relabel!(tg::TextGrid, num::Int, index::Int, label::AbstractString)
-    tier_num = findfirst(x -> x.num == num, tg)
-    relabel!(tg[tier_num], index, label)
-end
+relabel!(tg::TextGrid, num::Int, index::Int, label::AbstractString) = relabel!(tg[num], index, label)
 
 """
     relabel!(tier, indices, labels)
@@ -83,7 +76,7 @@ function extract_tier(tg::TextGrid, tiers...)
     tg_new = TextGrid()
     for tier in tiers
         if tier isa Integer
-            tier_num = findfirst(x -> x.num == tier, tg)
+            tier_num = num
         elseif tier isa String
             tier_num = findfirst(x -> x.name == tier, tg)
         else
@@ -112,10 +105,7 @@ function remove_tier!(tg::TextGrid, tiers...)
             deleteat!(tg, findfirst(x -> x.name == tier, tg))
         end
     end
-    for (i, tier) in enumerate(tg)
-        tier.num = i
-    end
-    tg
+    renumber_tiers!(tg)
 end
 
 """
@@ -185,3 +175,19 @@ function resize_tier!(tier::Tier)
 end
 
 resize_tier(tier::Tier) = resize_tier!(deepcopy(tier))
+
+function renumber_tiers!(tg::TextGrid)
+    for (i, tier) in enumerate(tg)
+        tier.num = i
+    end
+    return tg
+end
+
+function reindex_intervals!(tier::Tier; from::Int = 1)
+    for (i, interval) in zip(Iterators.countfrom(from), tier.contents[from:end])
+        interval.index = i
+    end
+    return tier
+end
+
+reindex_intervals!(tg::TextGrid, num::Int) = reindex_intervals!(tg[num])

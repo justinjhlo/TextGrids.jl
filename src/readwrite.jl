@@ -18,6 +18,8 @@ end
 
 TextGrid = Vector{Tier}
 
+# reading functions
+
 """
     read_TextGrid(file; intervals = true, points = true, nonempty = false)
 
@@ -83,7 +85,7 @@ function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Boo
             push!(tg, tier)
         end
     end
-    tg
+    return renumber_tiers!(tg)
 end
 
 in_quotes(urange, quote_ranges) = reduce(|, map(x -> (urange.start ∈ x) & (urange.stop ∈ x), quote_ranges))
@@ -133,6 +135,8 @@ function unparse_TG_label(text::AbstractString)
     label = replace(text, "\"" => "\"\"")
     "\"" * label * "\""
 end
+
+# writing functions
 
 """
     write_TextGrid(file, tg)
