@@ -1,5 +1,4 @@
 mutable struct Interval
-    tier::Int
     index::Int
     xmin::Float64
     xmax::Float64
@@ -121,7 +120,7 @@ function read_tier_contents!(tier::Tier, TG_raw, start::Int)
             label = parse_TG_label(TG_raw[curr+2])
         end
         curr += step
-        push!(tier.contents, Interval(tier.num, i, xmin, xmax, label))
+        push!(tier.contents, Interval(i, xmin, xmax, label))
     end
     tier
 end
@@ -194,7 +193,7 @@ function write_interval_tier(f::IOStream, tier::Tier)
     for interval in tier.contents
         if t < interval.xmin
             total += 1
-            write_interval(f, Interval(0, total, t, interval.xmin, ""))
+            write_interval(f, Interval(total, t, interval.xmin, ""))
         end
 
         total += 1
@@ -204,7 +203,7 @@ function write_interval_tier(f::IOStream, tier::Tier)
 
     if t < tier.xmax
         total += 1
-        write_interval(f, Interval(0, total, t, tier.xmax, ""))
+        write_interval(f, Interval(total, t, tier.xmax, ""))
     end
 end
 

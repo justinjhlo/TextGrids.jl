@@ -61,6 +61,27 @@ function relabel!(tier::Tier, labels)
 end
 
 """
+    insert_tier!(tg, name, num = 0; class)
+
+Insert a Tier of `class` (interval or point) called `name` into TextGrid `tg` at
+position `num`. Tier is inserted at the end of `tg` if `num` is unspecified or
+outside the number of tiers in `tg`.
+
+`insert_interval_tier!` and `insert_point_tier!` are class-specific wrappers.
+"""
+function insert_tier!(tg::TextGrid, name::AbstractString, num::Int = 0; class::AbstractString)
+    class ∈ ("interval", "point") || error("Tier class not recognised.")
+    num in 1:length(tg) || (num = length(tg) + 1)
+
+    insert!(tg, num, Tier(num, class, name, 1, extrema(tg)..., Vector{Interval}([Interval(1, extrema(tg)..., "")])))
+    num < length(tg) && renumber_tiers!(tg, from = num + 1)
+    return tg
+end
+
+insert_interval_tier!(tg::TextGrid, name::AbstractString, num::Int = 0) = insert_tier!(tg, name, num, class = "interval")
+insert_point_tier!(tg::TextGrid, name::AbstractString, num::Int = 0) = insert_tier!(tg, name, num, class = "point")
+
+"""
     extract_tier(tg, tiers...)
 
 Extract one or more Tiers from the input TextGrid `tg` and output another
@@ -176,8 +197,8 @@ end
 
 resize_tier(tier::Tier) = resize_tier!(deepcopy(tier))
 
-function renumber_tiers!(tg::TextGrid)
-    for (i, tier) in enumerate(tg)
+function renumber_tiers!(tg::TextGrid; from::Int = 1)
+    for (i, tier) in zip(Iterators.countfrom(from), tg[from:end])
         tier.num = i
     end
     return tg

@@ -6,6 +6,7 @@ export
 
     # tiers
     rename!, relabel!,
+    insert_tier!, insert_interval_tier!, insert_point_tier!,
     extract_tier,
     remove_tier!, remove_empty_tiers!,
     is_empty,

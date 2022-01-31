@@ -25,7 +25,7 @@ function insert_boundary!(tier::Tier, time::Real; split_at::Int = 0)
 
     label_length = length(tier.contents[index].label)
     split_at ∈ 1:label_length || (split_at = label_length + 1)
-    insert!(tier.contents, index + 1, Interval(tier.num, index + 1, time, tier.contents[index].xmax, tier.contents[index].label[split_at:end]))
+    insert!(tier.contents, index + 1, Interval(index + 1, time, tier.contents[index].xmax, tier.contents[index].label[split_at:end]))
     tier.contents[index].xmax = time
     tier.contents[index].label = tier.contents[index].label[1:(split_at - 1)]
     tier.size += 1
