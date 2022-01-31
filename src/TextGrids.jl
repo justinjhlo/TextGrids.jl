@@ -23,7 +23,7 @@ export
     # boundaries
     insert_boundary!,
     insert_interval!,
-    insert_intervals!
+    insert_intervals!,
 
     remove_boundary!,
     remove_left_boundary!,
