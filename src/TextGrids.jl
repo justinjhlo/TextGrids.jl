@@ -34,6 +34,11 @@ export
     remove_right_boundary!,
     remove_interval!,
 
+    move_left_boundary!,
+    move_right_boundary!,
+    move_boundary!,
+    move_interval!,
+
     # points
     insert_point!,
     insert_points!,

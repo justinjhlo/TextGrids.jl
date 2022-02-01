@@ -227,3 +227,132 @@ function remove_interval!(tier::Tier, index::Int)
 end
 
 remove_interval!(tg::TextGrid, num::Int, index::Int) = remove_interval!(tg[num], index)
+
+# move functions
+
+"""
+    move_left_boundary!(tier, index; by = 0, to = -1)
+    move_left_boundary!(tg, num, index; by = 0, to = -1)
+
+Move the left boundary of the `index`-th interval in an interval `tier`, either
+`by` a specified shift or `to` a specified destination. Boundary movement is
+not allowed to cross or overlap with other boundaries.
+
+See also `move_right_boundary!`, `move_boundary!` and `move_interval!`.
+"""
+function move_left_boundary!(tier::Tier, index::Int; by::Real = 0, to::Real = -1)
+    index == 1 && error("Cannot move left edge of tier.")
+    by == 0 && to == -1 && error("Boundary movement not specified.")
+    by != 0 && to != -1 && error("Both `by` and `to` specified.")
+
+    by != 0 && (to = tier.contents[index].xmin + by)
+    
+    (to < tier.xmin || to > tier.xmax) && error("Cannot move boundary out of bounds.")
+    (to ≤ tier.contents[index - 1].xmin || to ≥ tier.contents[index].xmax) && error("Cannot move boundary beyond interval duration.")
+
+    tier.contents[index].xmin = to
+    tier.contents[index - 1].xmax = to
+    return tier
+end
+
+move_left_boundary!(tg::TextGrid, num::Int, index::Int; by::Real = 0, to::Real = -1) = move_left_boundary!(tg[num], index, by = by, to = to)
+
+"""
+    move_right_boundary!(tier, index; by = 0, to = -1)
+    move_right_boundary!(tg, num, index; by = 0, to = -1)
+
+Move the right boundary of the `index`-th interval in an interval `tier`, either
+`by` a specified shift or `to` a specified destination. Boundary movement is
+not allowed to cross or overlap with other boundaries.
+
+See also `move_left_boundary!`, `move_boundary!` and `move_interval!`.
+"""
+function move_right_boundary!(tier::Tier, index::Int; by::Real = 0, to::Real = -1)
+    index == tier.size && error("Cannot move right edge of tier.")
+    move_left_boundary!(tier, index + 1, by = by, to = to)
+end
+
+move_right_boundary!(tg::TextGrid, num::Int, index::Int; by::Real = 0, to::Real = -1) = move_right_boundary!(tg[num], index, by = by, to = to)
+
+"""
+    move_interval!(tier, index; by = 0, to = -1)
+    move_interval!(tg, num, index; by = 0, to = -1)
+
+Move both left and right boundaries of the `index`-th interval in an interval
+`tier`, either `by` a specified shift or `to` a specified destination. `to`
+specifies the destination of the left boundary. Boundary movement is not allowed
+to cross or overlap with other boundaries.
+
+See also `move_left_boundary!`, `move_right_boundary!` and `move_boundary!`.
+"""
+function move_interval!(tier::Tier, index::Int; by::Real = 0, to::Real = -1)
+    index == 1 && error("Cannot move left edge of tier.")
+    index == tier.size && error("Cannot move right edge of tier.")
+    by == 0 && to == -1 && error("Boundary movement not specified.")
+    by != 0 && to != -1 && error("Both `by` and `to` specified.")
+
+    if by != 0
+        left_to = tier.contents[index].xmin + by
+        right_to = tier.contents[index].xmax + by
+    else
+        left_to = to
+        right_to = to + tier.contents[index].xmax - tier.contents[index].xmin
+    end
+
+    (left_to < tier.xmin || right_to > tier.xmax) && error("Cannot move boundary out of bounds.")
+    (left_to ≤ tier.contents[index - 1].xmin || right_to ≥ tier.contents[index + 1].xmax) && error("Cannot move boundary beyond interval duration.")
+
+    tier.contents[index].xmin = left_to
+    tier.contents[index - 1].xmax = left_to
+    tier.contents[index].xmax = right_to
+    tier.contents[index + 1].xmin = right_to
+
+    return tier
+end
+
+move_interval!(tg::TextGrid, num::Int, index::Int; by::Real = 0, to::Real = -1) = move_interval!(tg[num], index, by = by, to = to)
+
+"""
+    move_boundary!(tier, index, edge; by = 0, to = -1)
+    move_boundary!(tg, num, index, edge; by = 0, to = -1)
+
+Move one or both boundaries of the `index`-th interval in an interval `tier`,
+either `by` a specified shift or `to` a specified destination. Equivalent to
+the following depending on value of `edge`:
+- "left": `move_left_boundary!`
+- "right": `move_right_boundary!`
+- "both": `move_interval!`
+"""
+function move_boundary!(tier::Tier, index::Int, edge::AbstractString; by::Real = 0, to::Real = -1)
+    if edge == "left"
+        return move_left_boundary!(tier, index, by = by, to = to)
+    elseif edge == "right"
+        return move_right_boundary!(tier, index, by = by, to = to)
+    elseif edge == "both"
+        return move_interval!(tier, index, by = by, to = to)
+    else
+        error("`edge` must be `left`, `right` or `both`.")
+    end
+end
+
+move_boundary!(tg::TextGrid, num::Int, index::Int, edge::AbstractString; by::Real = 0, to::Real = -1) = move_boundary!(tg[num], index, edge, by = by, to = to)
+
+"""
+    move_boundary!(tier, time; by = 0, to = -1, tolerance = 0.0001)
+    move_boundary!(tg, num, time; by = 0, to = -1, tolerance = 0.0001)
+
+Move an interval boundary located at `time` (± `tolerance`), either `by` a
+specified shift or `to` a specified destination. Boundary movement is not
+allowed to cross or overlap with other boundaries. Nothing happens if no
+boundary is found within the tolerance limit.
+"""
+function move_boundary!(tier::Tier, time::AbstractFloat; by::Real = 0, to::Real = -1, tolerance::Real = 0.0001)
+    index = find_interval(tier, time)
+    if time - tier.contents[index].xmin ≤ tolerance
+        return move_left_boundary!(tier, index, by = by, to = to)
+    elseif tier.contents[index].xmax - time ≤ tolerance
+        return move_right_boundary!(tier, index, by = by, to = to)
+    end
+end
+
+move_boundary!(tg::TextGrid, num::Int, time::AbstractFloat; by::Real = 0, to::Real = -1, tolerance::Real = 0.0001) = move_boundary!(tg[num], time, by = by, to = to, tolerance = tolerance)
