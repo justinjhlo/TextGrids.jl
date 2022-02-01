@@ -1,6 +1,9 @@
 module TextGrids
 
 export
+    # types
+    Interval, Tier, TextGrid,
+
     # readwrite
     read_TextGrid, write_TextGrid,
 
@@ -38,6 +41,7 @@ export
     remove_point!,
     remove_points!
 
+include("types.jl")
 include("readwrite.jl")
 include("tiers.jl")
 include("query.jl")
