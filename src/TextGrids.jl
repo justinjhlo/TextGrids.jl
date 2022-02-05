@@ -1,5 +1,7 @@
 module TextGrids
 
+using StringEncodings
+
 export
     # types
     Interval, Tier, TextGrid,

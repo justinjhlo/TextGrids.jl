@@ -1,7 +1,7 @@
 # reading functions
 
 """
-    read_TextGrid(file; intervals = true, points = true, nonempty = false)
+    read_TextGrid(file; intervals = true, points = true, excl_empty = false)
 
 Read a Praat TextGrid file and return a `TextGrid` object, which is equivalent
 to a Vector of the type `Tier`. Supports both full and short text formats.
@@ -18,16 +18,16 @@ Each `Tier` has a number of attributes:
 # Keyword arguments:
 - `intervals::Bool = true`: Determines if Interval Tiers are read.
 - `points::Bool = true`: Determines if Point Tiers are read.
-- `nonempty::Bool = false`: Determines if only nonempty annotations are parsed.
+- `excl_empty::Bool = false`: Determines if only nonempty annotations are parsed.
     If `true`, the output `Tier` will not contain any empty intervals or points.
     Any empty points or boundaries between successive empty intervals from the
     input file are not preserved, and the size of the `Tier` will be recalculated
     to account for the lost annotations.
 """
-function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Bool = true, nonempty::Bool = false)
+function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Bool = true, excl_empty::Bool = false, encoding::AbstractString = "UTF-8")
     isfile(file) || error("$file does not exist")
 
-    f = readlines(file)
+    f = encoding == "UTF-16" ? readlines(file, enc"UTF-16") : readlines(file)
     f = join(f, " ")
 
     tg = TextGrid()
@@ -35,7 +35,7 @@ function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Boo
     
     # tg_quotes = findall(r"(?<=^|\s|\t)(\".*?[^\"]\"|\"\")(?=\t|\s|$)", f) # match free-standing text enclosed within double quotes
     tg_quotes = findall(r"(?<=^|\s|\t)\".*?\"(?=\t|\s|$)", f)
-    tg_nums = findall(r"(?<=^|\s|\t)\d+(\.\d+)?(?=\t|\s|$)", f) # match free-standing numbers
+    tg_nums = findall(r"(?<=^|\s|\t)-?\d+(\.\d+)?(?=\t|\s|$)", f) # match free-standing numbers
     tg_flags = findall(r"(?<=^|\s|\t)<.*?>(?=\t|\s|$)", f) # match free-standing flags
 
     deleteat!(tg_nums, findall(x -> in_quotes(x, tg_quotes), tg_nums))
@@ -52,7 +52,7 @@ function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Boo
         step = tier.class == "interval" ? 3 : 2
         tier_start += tier.size * step + 5
         
-        if nonempty
+        if excl_empty
             deleteat!(tier.contents, findall(x -> strip(x.label) == "", tier.contents))
             resize_tier!(tier)
         end

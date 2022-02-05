@@ -1,8 +1,4 @@
-function extrema(tg::TextGrid)
-    xmins = map(x -> x.xmin, tg)
-    xmaxs = map(x -> x.xmax, tg)
-    Base.extrema(vcat(xmins, xmaxs))
-end
+extrema(tg::TextGrid) = (minimum(x -> x.xmin, tg), maximum(x -> x.xmax, tg))
 
 function reindex(interval::Interval, num::Int)
     interval_new = interval
