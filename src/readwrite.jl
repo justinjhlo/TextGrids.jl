@@ -1,7 +1,8 @@
 # reading functions
 
 """
-    read_TextGrid(file; intervals = true, points = true, excl_empty = false)
+    read_TextGrid(file; intervals = true, points = true, excl_empty = false,
+                  encoding = "")
 
 Read a Praat TextGrid file and return a `TextGrid` object, which is equivalent
 to a Vector of the type `Tier`. Supports both full and short text formats.
@@ -23,26 +24,31 @@ Each `Tier` has a number of attributes:
     Any empty points or boundaries between successive empty intervals from the
     input file are not preserved, and the size of the `Tier` will be recalculated
     to account for the lost annotations.
+- `encoding::AbstractString = ""`: Specifies the encoding of the file. Supports
+    UTF-8, UTF-16, Latin-1 and MacRoman. Attempts to automatically figure out
+    the encoding if left unspecified.
 """
-function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Bool = true, excl_empty::Bool = false, encoding::AbstractString = "UTF-8")
+function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Bool = true, excl_empty::Bool = false, encoding::AbstractString = "")
     isfile(file) || error("$file does not exist")
 
-    f = encoding == "UTF-16" ? readlines(file, enc"UTF-16") : readlines(file)
-    f = join(f, " ")
+    enc = check_encoding(encoding)
+    enc == "" && error("Invalid encoding provided.")
+
+    if encoding == ""
+        tg_raw = nothing
+        for c in (enc"UTF-8", enc"UTF-16", enc"LATIN1", enc"MACROMAN")
+            try
+                tg_raw = get_raw_TG(file, c)
+            catch
+                c == enc"MACROMAN" ? rethrow() : continue
+            end
+            break
+        end
+    else
+        tg_raw = get_raw_TG(file, enc)
+    end
 
     tg = TextGrid()
-    # TBD: trim !-headed comments
-    
-    # tg_quotes = findall(r"(?<=^|\s|\t)(\".*?[^\"]\"|\"\")(?=\t|\s|$)", f) # match free-standing text enclosed within double quotes
-    tg_quotes = findall(r"(?<=^|\s|\t)\".*?\"(?=\t|\s|$)", f)
-    tg_nums = findall(r"(?<=^|\s|\t)-?\d+(\.\d+)?(?=\t|\s|$)", f) # match free-standing numbers
-    tg_flags = findall(r"(?<=^|\s|\t)<.*?>(?=\t|\s|$)", f) # match free-standing flags
-
-    deleteat!(tg_nums, findall(x -> in_quotes(x, tg_quotes), tg_nums))
-    deleteat!(tg_flags, findall(x -> in_quotes(x, tg_quotes), tg_flags))
-
-    tg_raw = SubString.(f, sort!(vcat(tg_quotes, tg_nums, tg_flags)))
-    is_TextGrid(tg_raw) || error("$file is not a valid TextGrid")
     tg_raw[5] == "<exists>" || return tg
 
     n_tier = parse(Int, tg_raw[6])
@@ -68,9 +74,34 @@ function read_TextGrid(file::AbstractString; intervals::Bool = true, points::Boo
     return renumber_tiers!(tg)
 end
 
+const str2encoding = Dict("Latin-1" => enc"LATIN1",
+                            "MacRoman" => enc"MACROMAN",
+                            "UTF-8" => enc"UTF-8",
+                            "UTF-16" => enc"UTF-16",
+                            "" => enc"UTF-8")
+check_encoding(str::AbstractString) = get(str2encoding, str, "")
+
 in_quotes(urange, quote_ranges) = reduce(|, map(x -> (urange.start ∈ x) & (urange.stop ∈ x), quote_ranges))
 
-is_TextGrid(TG_raw) = (TG_raw[1] == "\"ooTextFile\"" && TG_raw[2] == "\"TextGrid\"")
+function get_raw_TG(file::AbstractString, encoding)
+   # TBD: trim !-headed comments
+   f = join(readlines(file, encoding), " ")
+
+    tg_quotes = findall(r"(?<=^|\s|\t)\".*?\"(?=\t|\s|$)", f)
+    tg_nums = findall(r"(?<=^|\s|\t)-?\d+(\.\d+)?(?=\t|\s|$)", f) # match free-standing numbers
+    tg_flags = findall(r"(?<=^|\s|\t)<.*?>(?=\t|\s|$)", f) # match free-standing flags
+
+    deleteat!(tg_nums, findall(x -> in_quotes(x, tg_quotes), tg_nums))
+    deleteat!(tg_flags, findall(x -> in_quotes(x, tg_quotes), tg_flags))
+
+    tg_raw = SubString.(f, sort!(vcat(tg_quotes, tg_nums, tg_flags)))
+
+    is_TextGrid(tg_raw) || error("Invalid TextGrid. Check file is a TextGrid or try a different encoding.")
+
+    return tg_raw
+end
+
+is_TextGrid(TG_raw) = length(TG_raw) > 0 && TG_raw[1] == "\"ooTextFile\"" && TG_raw[2] == "\"TextGrid\""
 
 function build_tier(TG_raw, num::Int, tier_start::Int)
     (class, name, xmin, xmax, size) = read_tier_preamble(TG_raw, tier_start)
