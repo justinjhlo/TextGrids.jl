@@ -155,8 +155,11 @@ end
 Write the TextGrid object `tg` to a TextGrid file. Currently only writes in
 full and not short text file format.
 """
-function write_TextGrid(file::AbstractString, tg::TextGrid)
-    f = Base.open(file, "w")
+function write_TextGrid(file::AbstractString, tg::TextGrid; encoding::AbstractString = "UTF-8")
+    encoding ∈ ("UTF-8", "UTF-16") || error("Only UTF-8 and UTF-16 are supported.")
+
+    enc = encoding == "UTF-8" ? enc"UTF-8" : enc"UTF-16"
+    f = open(file, enc, "w")
 
     write_TextGrid_preamble(f, tg)
     
@@ -169,7 +172,7 @@ function write_TextGrid(file::AbstractString, tg::TextGrid)
     close(f)
 end
 
-function write_TextGrid_preamble(f::IOStream, tg::TextGrid)
+function write_TextGrid_preamble(f::StringEncoder, tg::TextGrid)
     tg_xmin, tg_xmax = extrema(tg)
     writeln(f, "File type = \"ooTextFile\"")
     writeln(f, "Object class = \"TextGrid\"")
@@ -181,7 +184,7 @@ function write_TextGrid_preamble(f::IOStream, tg::TextGrid)
     writeln(f, "item []:")
 end
 
-function write_tier_preamble(f::IOStream, tier::Tier)
+function write_tier_preamble(f::StringEncoder, tier::Tier)
     tclass = tier.class == "interval" ? "IntervalTier" : "TextTier"
     writeln(f, "item [$(tier.num)]:", depth = 1)
     writeln(f, "class = \"$tclass\"", depth = 2)
@@ -191,7 +194,7 @@ function write_tier_preamble(f::IOStream, tier::Tier)
     writeln(f, "$(tier.class)s: size = $(tier.size)", depth = 2)
 end
 
-function write_tier_contents(f::IOStream, tier::Tier)
+function write_tier_contents(f::StringEncoder, tier::Tier)
     if tier.class == "interval"
         write_interval_tier(f, tier)
     else
@@ -199,7 +202,7 @@ function write_tier_contents(f::IOStream, tier::Tier)
     end
 end
 
-function write_interval_tier(f::IOStream, tier::Tier)
+function write_interval_tier(f::StringEncoder, tier::Tier)
     t = 0.0
     total = 0
     for interval in tier.contents
@@ -219,20 +222,20 @@ function write_interval_tier(f::IOStream, tier::Tier)
     end
 end
 
-function write_point_tier(f::IOStream, tier::Tier)
+function write_point_tier(f::StringEncoder, tier::Tier)
     for point in tier.contents
         write_point(f, point)
     end
 end
 
-function write_interval(f::IOStream, interval::Interval)
+function write_interval(f::StringEncoder, interval::Interval)
     writeln(f, "intervals [$(interval.index)]:", depth = 2)
     writeln(f, "xmin = $(interval.xmin)", depth = 3)
     writeln(f, "xmax = $(interval.xmax)", depth = 3)
     writeln(f, "text = " * unparse_TG_label(interval.label), depth = 3)
 end
 
-function write_point(f::IOStream, point::Interval)
+function write_point(f::StringEncoder, point::Interval)
     writeln(f, "points [$(point.index)]:", depth = 2)
     writeln(f, "number = $(point.xmin)", depth = 3)
     writeln(f, "mark = " * unparse_TG_label(point.label), depth = 3)
