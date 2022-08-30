@@ -97,7 +97,7 @@ function extract_tier(tg::TextGrid, tiers...)
     tg_new = TextGrid()
     for tier in tiers
         if tier isa Integer
-            tier_num = num
+            tier_num = tier
         elseif tier isa String
             tier_num = findfirst(x -> x.name == tier, tg)
         else
